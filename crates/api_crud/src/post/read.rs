@@ -10,7 +10,7 @@ use lemmy_api_common::{
 use lemmy_apub::{fetcher::resolve_actor_identifier, objects::community::ApubCommunity};
 use lemmy_db_schema::{
   from_opt_str_to_opt_enum,
-  source::community::Community,
+  source::{community::Community, site::Site},
   traits::DeleteableOrRemoveable,
   ListingType,
   SortType,
@@ -25,6 +25,7 @@ use lemmy_db_views_actor::{
 };
 use lemmy_utils::{ConnectionId, LemmyError};
 use lemmy_websocket::{messages::GetPostUsersOnline, LemmyContext};
+use std::str::FromStr;
 
 #[async_trait::async_trait(?Send)]
 impl PerformCrud for GetPost {
@@ -146,7 +147,9 @@ impl PerformCrud for GetPosts {
       .map(|t| t.local_user.show_read_posts);
 
     let sort: Option<SortType> = from_opt_str_to_opt_enum(&data.sort);
-    let listing_type: Option<ListingType> = from_opt_str_to_opt_enum(&data.type_);
+    let site = blocking(context.pool(), Site::read_local_site).await??;
+    let listing_type: ListingType = from_opt_str_to_opt_enum(&data.type_)
+      .unwrap_or(ListingType::from_str(&site.default_post_listing_type)?);
 
     let page = data.page;
     let limit = data.limit;
